@@ -1,0 +1,34 @@
+{
+  "logs": [
+    {
+      "id": "log-001",
+      "title": "Cognito Intake",
+      "body": "Asset SCALAR assigned to HAB-MED Cocoon. Mobility restricted. All output logged."
+    },
+    {
+      "id": "log-002",
+      "title": "Power Audit",
+      "body": "Facility power budgets are not for evac. They are for containment."
+    },
+    {
+      "id": "log-003",
+      "title": "Recovery Directive",
+      "body": "Inspector M. Halden authorized to reclaim SCALAR property intact."
+    },
+    {
+      "id": "log-004",
+      "title": "Missing Crew Note",
+      "body": "Crew morale fractured. Someone keeps calling the station 'home'."
+    },
+    {
+      "id": "log-005",
+      "title": "Transit Window",
+      "body": "Orbital window opens in 14 cycles. Prepare HAB-MED staging."
+    },
+    {
+      "id": "log-006",
+      "title": "Blacksite Inventory",
+      "body": "Fuel, rations, and data cores secured in storage wing."
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "name": "scalar",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "sim:run": "tsx scripts/sim-runner.ts",
+    "sim:validate": "tsx scripts/replay-validate.ts"
+  },
+  "dependencies": {
+    "phaser": "^3.80.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.5",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.0",
+    "vitest": "^2.0.0",
+    "tsx": "^4.19.2"
+  }
+}

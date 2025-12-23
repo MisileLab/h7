@@ -1,0 +1,29 @@
+{
+  "dialogue": [
+    {
+      "id": "dialogue-001",
+      "speaker": "Crystal",
+      "text": "HAB-MED systems are stable. I can keep you warm, but we need power and parts."
+    },
+    {
+      "id": "dialogue-002",
+      "speaker": "Scalar",
+      "text": "We move fast, we move quiet. I am not going back to their vault."
+    },
+    {
+      "id": "dialogue-003",
+      "speaker": "Crystal",
+      "text": "The station is a shell, but it can be home if we keep it alive."
+    },
+    {
+      "id": "dialogue-004",
+      "speaker": "Inspector Halden",
+      "text": "Asset SCALAR is corporate property. You are in breach of custody."
+    },
+    {
+      "id": "dialogue-005",
+      "speaker": "Scalar",
+      "text": "I am not an asset. Not anymore."
+    }
+  ]
+}

@@ -1,0 +1,115 @@
+{
+  "drones": [
+    {
+      "id": "bulwark",
+      "name": "Bulwark",
+      "hp": 14,
+      "armor": 2,
+      "traits": {}
+    },
+    {
+      "id": "striker",
+      "name": "Striker",
+      "hp": 12,
+      "armor": 1,
+      "traits": { "dashCostMod": -1 }
+    },
+    {
+      "id": "specter",
+      "name": "Specter",
+      "hp": 10,
+      "armor": 0,
+      "traits": { "hackCostMod": -1 }
+    },
+    {
+      "id": "patcher",
+      "name": "Patcher",
+      "hp": 11,
+      "armor": 1,
+      "traits": { "repairBonus": 1 }
+    },
+    {
+      "id": "scout",
+      "name": "Scout",
+      "hp": 10,
+      "armor": 1,
+      "traits": { "startOfFightMark": true }
+    },
+    {
+      "id": "packmule",
+      "name": "Packmule",
+      "hp": 13,
+      "armor": 1,
+      "traits": { "lootCostMod": -1, "dashCostMod": 1 }
+    }
+  ],
+  "enemies": [
+    {
+      "id": "patrol-drone",
+      "name": "Patrol Drone",
+      "hp": 8,
+      "armor": 0,
+      "role": "patrol",
+      "weapon": { "damage": 2, "range": 5 }
+    },
+    {
+      "id": "shield-drone",
+      "name": "Shield Drone",
+      "hp": 12,
+      "armor": 2,
+      "role": "shield",
+      "weapon": { "damage": 2, "range": 4 }
+    },
+    {
+      "id": "repair-drone",
+      "name": "Repair Drone",
+      "hp": 9,
+      "armor": 1,
+      "role": "repair",
+      "weapon": { "damage": 1, "range": 4 }
+    },
+    {
+      "id": "jammer-drone",
+      "name": "Jammer Drone",
+      "hp": 7,
+      "armor": 0,
+      "role": "jammer",
+      "weapon": { "damage": 1, "range": 4 },
+      "statusOnHit": { "status": "JAMMED", "turns": 1 }
+    },
+    {
+      "id": "hound-bot",
+      "name": "Hound Bot",
+      "hp": 10,
+      "armor": 1,
+      "role": "hound",
+      "weapon": { "damage": 3, "range": 1 },
+      "knockback": 1
+    },
+    {
+      "id": "sniper-turret",
+      "name": "Sniper Turret",
+      "hp": 8,
+      "armor": 1,
+      "role": "turret-sniper",
+      "weapon": { "damage": 4, "range": 7 }
+    },
+    {
+      "id": "sentry-turret",
+      "name": "Sentry Turret",
+      "hp": 10,
+      "armor": 2,
+      "role": "turret-sentry",
+      "weapon": { "damage": 3, "range": 6 }
+    },
+    {
+      "id": "camera-node",
+      "name": "Camera Node",
+      "hp": 5,
+      "armor": 0,
+      "role": "camera",
+      "weapon": { "damage": 0, "range": 6 },
+      "statusOnHit": { "status": "MARKED", "turns": 1 }
+    }
+  ]
+}
