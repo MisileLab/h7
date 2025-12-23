@@ -13,13 +13,13 @@
     "sim:validate": "tsx scripts/replay-validate.ts"
   },
   "dependencies": {
-    "phaser": "^3.80.1"
+    "phaser": "^3.90.0"
   },
   "devDependencies": {
-    "@types/node": "^20.16.5",
-    "typescript": "^5.6.3",
-    "vite": "^6.0.0",
-    "vitest": "^2.0.0",
-    "tsx": "^4.19.2"
+    "@types/node": "^25.0.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.0",
+    "vitest": "^4.0.16"
   }
 }

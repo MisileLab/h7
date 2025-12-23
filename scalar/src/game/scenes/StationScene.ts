@@ -80,7 +80,7 @@ export class StationScene extends Phaser.Scene {
       this.add.text(width / 2, 290, '[NO LOGS]', { fontSize: '16px', color: '#666', fontFamily: 'monospace' });
     } else {
       logs.forEach((log, index) => {
-        this.add.text(width / 2, 290 + (index * 80), `> ${log.title}`, { fontSize: '18px', color: COLORS.door, fontFamily: 'monospace' });
+        this.add.text(width / 2, 290 + (index * 80), `> ${log.title}`, { fontSize: '18px', color: String(COLORS.door), fontFamily: 'monospace' });
         this.add.text(width / 2 + 20, 315 + (index * 80), log.body, { fontSize: '14px', color: '#aaa', fontFamily: 'monospace', wordWrap: { width: 400 } });
       });
     }

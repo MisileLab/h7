@@ -38,7 +38,13 @@ export function buildDamage(
   target: UnitState,
   weapon: ItemDef | EnemyTemplate
 ): PendingDamage {
-  const baseDamage = "damage" in weapon ? weapon.damage ?? 0 : weapon.weapon.damage;
+  let baseDamage = 0;
+  if ("weapon" in weapon) {
+    baseDamage = weapon.weapon.damage;
+  } else {
+    baseDamage = weapon.damage ?? 0;
+  }
+
   const cover = getCoverReduction(state.grid, target.pos);
   const coverReduction = applyMarked(target, cover);
   const armorReduction = Math.max(0, target.armor - getShredStacks(target));

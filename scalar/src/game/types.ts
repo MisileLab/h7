@@ -30,7 +30,7 @@ export const COLORS = {
   floor: 0x111111,
   drone: 0x00ff88,
   enemy: 0xff4444,
-  door: 0x0088ff,
+  door: '#0088ff',
   console: 0xffff00,
   crate: 0xffaa00,
   text: '#e0e0e0',

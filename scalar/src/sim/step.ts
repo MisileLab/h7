@@ -33,6 +33,14 @@ export interface StepResult {
   observation: ReturnType<typeof buildObservation>;
 }
 
+type RangeWeapon = { range: number };
+
+function isRangeWeapon(weapon: ItemDef): weapon is ItemDef & RangeWeapon {
+  return typeof weapon.range === "number";
+}
+
+type MovementCommand = Extract<DroneCommand, { type: "MOVE" | "DASH" }>;
+
 export function step(state: GameState, commands: WegoCommands): StepResult {
   const nextState = cloneState(state);
   const events: SimEvent[] = [];
@@ -54,7 +62,9 @@ export function step(state: GameState, commands: WegoCommands): StepResult {
   const enemyCommands = buildEnemyCommands(nextState);
   const allCommands = dedupeCommands([...paidCommands, ...enemyCommands], events);
 
-  const moveCommands = allCommands.filter((command) => command.type === "MOVE" || command.type === "DASH");
+  const moveCommands = allCommands.filter(
+    (command): command is MovementCommand => command.type === "MOVE" || command.type === "DASH"
+  );
   const otherCommands = allCommands.filter((command) => command.type !== "MOVE" && command.type !== "DASH");
 
   resolveMovement(nextState, moveCommands, events);
@@ -86,6 +96,10 @@ export function step(state: GameState, commands: WegoCommands): StepResult {
           break;
         }
         if (unit.faction === "drone") {
+          if (!isRangeWeapon(weapon)) {
+            events.push({ type: "CommandFailed", unitId: unit.id, reason: "no_weapon" });
+            break;
+          }
           const loadout = unit.loadout;
           if (!loadout || loadout.primary.ammo <= 0) {
             events.push({ type: "CommandFailed", unitId: unit.id, reason: "empty_ammo" });
@@ -263,10 +277,13 @@ function dedupeCommands(commands: DroneCommand[], events: SimEvent[]): DroneComm
   return deduped;
 }
 
-function resolveMovement(state: GameState, commands: DroneCommand[], events: SimEvent[]): void {
+function resolveMovement(state: GameState, commands: MovementCommand[], events: SimEvent[]): void {
   const occupied = new Set(Object.values(state.units).map((unit) => key(unit.pos)));
   const sorted = [...commands].sort((a, b) => a.droneId.localeCompare(b.droneId));
   for (const command of sorted) {
+    if (command.type !== "MOVE" && command.type !== "DASH") {
+      continue;
+    }
     const unit = state.units[command.droneId];
     if (!unit || unit.hp <= 0) {
       continue;

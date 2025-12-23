@@ -1,13 +1,18 @@
 import Phaser from 'phaser';
 import { SCENE_KEYS, COLORS } from '../types';
 import { simBridge } from '../simBridge';
-import { GameState, UnitState, Vec2 } from '../sim/state';
-import { DroneCommand } from '../sim/schemas';
+import { GameState, UnitState, Vec2 } from '../../sim/state';
+import { DroneCommand } from '../../sim/schemas';
 import { UIScene } from './UIScene';
 
 const TILE_SIZE = 24;
 const GRID_OFFSET_X = 50;
 const GRID_OFFSET_Y = 100;
+
+function parseHexColor(hex: string): number {
+  const normalized = hex.startsWith('#') ? hex.slice(1) : hex;
+  return Number.parseInt(normalized, 16);
+}
 
 export class RaidScene extends Phaser.Scene {
   private graphics!: Phaser.GameObjects.Graphics;
@@ -98,7 +103,7 @@ export class RaidScene extends Phaser.Scene {
         
         // Extraction Zone
         if (tile.extraction) {
-            this.graphics.lineStyle(2, COLORS.accent);
+            this.graphics.lineStyle(2, parseHexColor(COLORS.accent));
             this.graphics.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
         }
       }
@@ -119,7 +124,7 @@ export class RaidScene extends Phaser.Scene {
     Object.values(state.doors).forEach(door => {
       const x = GRID_OFFSET_X + door.pos.x * TILE_SIZE;
       const y = GRID_OFFSET_Y + door.pos.y * TILE_SIZE;
-      this.graphics.fillStyle(COLORS.door, door.open ? 0.3 : 1.0);
+      this.graphics.fillStyle(parseHexColor(COLORS.door), door.open ? 0.3 : 1.0);
       this.graphics.fillRect(x + 4, y + 4, TILE_SIZE - 8, TILE_SIZE - 8);
     });
 
@@ -196,18 +201,28 @@ export class RaidScene extends Phaser.Scene {
 
   private handleGridClick(screenX: number, screenY: number) {
     if (simBridge.isReplayActive()) {
-        return;
+      return;
     }
-    if (screenX < GRID_OFFSET_X || screenY < GRID_OFFSET_Y) {
-        // Clicked outside grid (maybe on UI), ignore
-        return;
+
+    const state = simBridge.getRaidState();
+    if (!state) {
+      return;
+    }
+
+    const gridWidthPx = state.grid.width * TILE_SIZE;
+    const gridHeightPx = state.grid.height * TILE_SIZE;
+    const inGridBounds =
+      screenX >= GRID_OFFSET_X &&
+      screenY >= GRID_OFFSET_Y &&
+      screenX < GRID_OFFSET_X + gridWidthPx &&
+      screenY < GRID_OFFSET_Y + gridHeightPx;
+
+    if (!inGridBounds) {
+      return;
     }
 
     const gridX = Math.floor((screenX - GRID_OFFSET_X) / TILE_SIZE);
     const gridY = Math.floor((screenY - GRID_OFFSET_Y) / TILE_SIZE);
-    
-    const state = simBridge.getRaidState();
-    if (!state) return;
 
     const clickedUnit = Object.values(state.units).find(u => u.pos.x === gridX && u.pos.y === gridY && u.hp > 0);
 

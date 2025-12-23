@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { SCENE_KEYS } from '../types';
 import { simBridge } from '../simBridge';
-import { DroneCommand } from '../sim/schemas';
+import { DroneCommand } from '../../sim/schemas';
 
 interface ReplayFile {
   seed: number;
