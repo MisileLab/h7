@@ -1,25 +1,22 @@
 {
-  "name": "scalar",
+  "name": "crystal-scala-project-lattice",
   "private": true,
+  "version": "0.0.0",
   "type": "module",
-  "version": "0.1.0",
+  "packageManager": "yarn@4.12.0",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "sim:run": "tsx scripts/sim-runner.ts",
-    "sim:validate": "tsx scripts/replay-validate.ts"
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "phaser": "^3.90.0"
   },
   "devDependencies": {
-    "@types/node": "^25.0.3",
-    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vite": "^7.3.0",
+    "vite": "^7.3.1",
     "vitest": "^4.0.16"
   }
 }

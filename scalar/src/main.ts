@@ -1,21 +1,32 @@
-import Phaser from 'phaser';
-import { BootScene } from './game/scenes/BootScene';
-import { StationScene } from './game/scenes/StationScene';
-import { RaidScene } from './game/scenes/RaidScene';
-import { UIScene } from './game/scenes/UIScene';
+import Phaser from 'phaser'
+import { BootScene } from './scenes/BootScene'
+import { SplashScene } from './scenes/SplashScene'
+import { MenuScene } from './scenes/MenuScene'
+import { GameScene } from './scenes/GameScene'
 
-const config: Phaser.Types.Core.GameConfig = {
-  type: Phaser.AUTO,
-  width: 1024,
-  height: 768,
-  parent: 'game-container',
-  backgroundColor: '#050505',
-  scene: [BootScene, StationScene, RaidScene, UIScene],
-  pixelArt: true,
-  scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH
+function startGame(parent: string) {
+  const config: Phaser.Types.Core.GameConfig = {
+    type: Phaser.AUTO,
+    parent,
+    width: 960,
+    height: 540,
+    backgroundColor: '#0f1316',
+    pixelArt: true,
+    scale: {
+      mode: Phaser.Scale.RESIZE,
+      autoCenter: Phaser.Scale.CENTER_BOTH,
+    },
+    scene: [BootScene, SplashScene, MenuScene, GameScene],
   }
-};
 
-new Phaser.Game(config);
+  new Phaser.Game(config)
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const containerId = 'game-container'
+  const el = document.getElementById(containerId)
+  if (!el) {
+    throw new Error(`Missing #${containerId} element`)
+  }
+  startGame(containerId)
+})
