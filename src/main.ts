@@ -12,6 +12,10 @@ function startGame(parent: string) {
     height: 540,
     backgroundColor: '#0f1316',
     pixelArt: true,
+    scale: {
+      mode: Phaser.Scale.RESIZE,
+      autoCenter: Phaser.Scale.CENTER_BOTH,
+    },
     scene: [BootScene, SplashScene, MenuScene, GameScene],
   }
 
