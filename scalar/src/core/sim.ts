@@ -20,26 +20,12 @@ export interface ExtractOutcome {
 }
 
 export interface HazardOutcome {
-  key: 'PatrolSweep' | 'SurgicalLight'
+  key: 'PatrolSweep' | 'SurgicalLight' | 'WardenSweep'
   ok: boolean
   deltaHeat: number
   deltaVitals: number
   deltaStress: number
   deltaTrust: number
-  droneIntegrityDelta: number
-  droneDown: boolean
-}
-
-export interface CombatOutcome {
-  key: 'WardenSkirmish'
-  ok: boolean
-  deltaHeat: number
-  deltaVitals: number
-  deltaStress: number
-  deltaTrust: number
-  deltaPower: number
-  deltaSupplies: number
-  deltaParts: number
   droneIntegrityDelta: number
   droneDown: boolean
 }
@@ -49,7 +35,6 @@ export interface MoveOutcome {
   deltaPower: number
   time: number
   blockedByLockdown: boolean
-  enteredCombat: boolean
 }
 
 export interface SimStepResult {
@@ -198,13 +183,10 @@ export function simulateMove(
   rng: Rng,
   cost: { time: number; heat: number; power: number },
   flags: DayFlags,
-  opts?: { enteredCombat?: boolean },
 ): { outcome: MoveOutcome; flags: DayFlags } {
   let blockedByLockdown = false
   let heat = cost.heat
   let power = cost.power
-
-  const enteredCombat = Boolean(opts?.enteredCombat)
 
   if (state.heat >= 40) {
     const lockdownChance = state.heat >= 70 ? 0.35 : 0.15
@@ -217,7 +199,7 @@ export function simulateMove(
   }
 
   return {
-    outcome: { deltaHeat: heat, deltaPower: -Math.max(0, power), time: cost.time, blockedByLockdown, enteredCombat },
+    outcome: { deltaHeat: heat, deltaPower: -Math.max(0, power), time: cost.time, blockedByLockdown },
     flags,
   }
 }
@@ -239,6 +221,24 @@ export function simulateHazard(state: GameState, rng: Rng, params: { key: Hazard
       deltaHeat: 1,
       deltaVitals: -2,
       deltaStress: 18 + params.severity * 6,
+      deltaTrust: 0,
+      droneIntegrityDelta: loss,
+      droneDown: projected <= 0,
+    }
+  }
+
+  if (params.key === 'WardenSweep') {
+    if (ok) {
+      return { key: params.key, ok: true, deltaHeat: 4, deltaVitals: 0, deltaStress: 12, deltaTrust: 0, droneIntegrityDelta: -Math.round(8 + params.severity * 3), droneDown: false }
+    }
+    const loss = -Math.round(20 + params.severity * 10)
+    const projected = clamp(state.drone.integrity + loss, 0, 100)
+    return {
+      key: params.key,
+      ok: false,
+      deltaHeat: 8 + params.severity * 4,
+      deltaVitals: -3 - params.severity,
+      deltaStress: 20 + params.severity * 8,
       deltaTrust: 0,
       droneIntegrityDelta: loss,
       droneDown: projected <= 0,
@@ -271,73 +271,6 @@ export function applyHazardOutcome(state: GameState, outcome: HazardOutcome): Ga
       vitals: clamp(state.scala.vitals + outcome.deltaVitals, 0, 100),
       stress: clamp(state.scala.stress + outcome.deltaStress, 0, 100),
       trust: clamp(state.scala.trust + outcome.deltaTrust, 0, 100),
-    },
-    drone: {
-      ...state.drone,
-      integrity: clamp(state.drone.integrity + outcome.droneIntegrityDelta, 0, 100),
-      status: outcome.droneDown ? 'Down' : state.drone.status,
-    },
-  }
-}
-
-export function simulateCombat(
-  state: GameState,
-  rng: Rng,
-  params: { key: CombatOutcome['key']; difficulty: number },
-): CombatOutcome {
-  const difficulty = clamp(params.difficulty, 0, 3)
-  const baseOk = 0.82 - difficulty * 0.18
-  const okChance = computeExtractSuccessChance(state, baseOk)
-  const ok = roll(okChance, rng)
-
-  if (ok) {
-    return {
-      key: params.key,
-      ok: true,
-      deltaHeat: 3 + difficulty * 1,
-      deltaVitals: 0,
-      deltaStress: 10 + difficulty * 2,
-      deltaTrust: 0,
-      deltaPower: 0,
-      deltaSupplies: 0,
-      deltaParts: 1,
-      droneIntegrityDelta: -Math.round(8 + difficulty * 4),
-      droneDown: false,
-    }
-  }
-
-  const loss = -Math.round(18 + difficulty * 8)
-  const projected = clamp(state.drone.integrity + loss, 0, 100)
-
-  return {
-    key: params.key,
-    ok: false,
-    deltaHeat: 6 + difficulty * 3,
-    deltaVitals: -2 - difficulty,
-    deltaStress: 18 + difficulty * 6,
-    deltaTrust: 0,
-    deltaPower: -1,
-    deltaSupplies: -1,
-    deltaParts: 0,
-    droneIntegrityDelta: loss,
-    droneDown: projected <= 0,
-  }
-}
-
-export function applyCombatOutcome(state: GameState, outcome: CombatOutcome): GameState {
-  return {
-    ...state,
-    heat: clamp(state.heat + outcome.deltaHeat, 0, 100),
-    scala: {
-      vitals: clamp(state.scala.vitals + outcome.deltaVitals, 0, 100),
-      stress: clamp(state.scala.stress + outcome.deltaStress, 0, 100),
-      trust: clamp(state.scala.trust + outcome.deltaTrust, 0, 100),
-    },
-    inventory: {
-      ...state.inventory,
-      power: Math.max(0, state.inventory.power + outcome.deltaPower),
-      supplies: Math.max(0, state.inventory.supplies + outcome.deltaSupplies),
-      parts: Math.max(0, state.inventory.parts + outcome.deltaParts),
     },
     drone: {
       ...state.drone,

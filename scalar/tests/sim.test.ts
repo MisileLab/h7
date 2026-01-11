@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createRng } from '../src/core/rng'
 import { createInitialState } from '../src/core/state'
-import { applyCombatOutcome, applyExtractOutcome, computeExtractSuccessChance, isFail, isWin, simulateCombat, simulateExtract } from '../src/core/sim'
+import { applyExtractOutcome, applyHazardOutcome, computeExtractSuccessChance, isFail, isWin, simulateExtract, simulateHazard } from '../src/core/sim'
 
 describe('sim M0 sanity', () => {
   it('RNG is deterministic for same seed', () => {
@@ -90,13 +90,15 @@ describe('sim M0 sanity', () => {
     expect(next.drone.status).toBe('Down')
   })
 
-  it('simulateCombat success yields parts and damages drone', () => {
+  it('simulateHazard WardenSweep applies heavy penalties', () => {
     const s = createInitialState()
-    const rng = createRng(1)
-    const out = simulateCombat(s, rng, { key: 'WardenSkirmish', difficulty: 0 })
-    expect(out.key).toBe('WardenSkirmish')
+    const rng = { next: () => 0.999, int: () => 0 }
+    const out = simulateHazard(s, rng, { key: 'WardenSweep', severity: 3 })
+    expect(out.key).toBe('WardenSweep')
+    expect(out.ok).toBe(false)
 
-    const next = applyCombatOutcome(s, out)
-    expect(next.drone.integrity).toBeLessThanOrEqual(s.drone.integrity)
+    const next = applyHazardOutcome(s, out)
+    expect(next.drone.integrity).toBeLessThan(s.drone.integrity)
+    expect(next.heat).toBeGreaterThan(s.heat)
   })
 })

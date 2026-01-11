@@ -1,6 +1,6 @@
 export type DroneRole = 'Scout' | 'Mule' | 'Hack'
 
-export type NodeType = 'Extract' | 'Story' | 'Hazard' | 'Combat'
+export type NodeType = 'Extract' | 'Story' | 'Hazard'
 
 export type ResourceKey = 'power' | 'supplies' | 'parts'
 

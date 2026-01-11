@@ -7,7 +7,7 @@ import type { GameState } from '../core/state'
 import type { Milestone, NodeId, NodeType } from '../types'
 import { milestoneAtLeast } from '../types'
 import { createRng } from '../core/rng'
-import { applyCombatOutcome, applyExtractOutcome, applyHazardOutcome, applyMoveCost, appendLog, initDayFlags, simulateCombat, simulateExtract, simulateHazard, simulateMove, stepAndCheckEnd } from '../core/sim'
+import { applyExtractOutcome, applyHazardOutcome, applyMoveCost, appendLog, initDayFlags, simulateExtract, simulateHazard, simulateMove, stepAndCheckEnd } from '../core/sim'
 import { loadSettings, saveToSlot, type Settings } from '../core/save'
 
 type Point = { x: number; y: number }
@@ -349,7 +349,6 @@ export class GameScene extends Phaser.Scene {
   private nodeFill(t: NodeType): number {
     if (t === 'Extract') return 0xffb000
     if (t === 'Story') return 0xd8caa7
-    if (t === 'Combat') return 0xff3dd6
     return 0xff6b3d
   }
 
@@ -523,8 +522,7 @@ export class GameScene extends Phaser.Scene {
     if (!edge) return
 
     const before = this.state
-    const enteredCombat = this.nodeIndex.get(sel)?.type === 'Combat'
-    const { outcome, flags } = simulateMove(before, this.rng, edge.cost, this.dayFlags, { enteredCombat })
+    const { outcome, flags } = simulateMove(before, this.rng, edge.cost, this.dayFlags)
     this.dayFlags = flags
 
     let next = applyMoveCost(before, { heat: outcome.deltaHeat, power: -outcome.deltaPower })
@@ -535,16 +533,6 @@ export class GameScene extends Phaser.Scene {
 
     next = { ...next, run: { ...next.run, droneNodeId: sel, selectedNodeId: sel } }
     next = this.applyTime(next, outcome.time)
-
-    if (outcome.enteredCombat) {
-      const n = this.nodeIndex.get(sel)
-      if (n?.type === 'Combat' && n.combat) {
-        const out = simulateCombat(next, this.rng, { key: n.combat.key, difficulty: n.combat.difficulty })
-        next = applyCombatOutcome(next, out)
-        next = appendLog(next, { speaker: 'SYSTEM', text: out.ok ? `Combat won at ${n.name}.` : `Combat lost at ${n.name}.` })
-        if (!out.ok) this.maybeShake(0.015, 200)
-      }
-    }
 
     this.state = next
     this.snapDroneToNode(sel)
