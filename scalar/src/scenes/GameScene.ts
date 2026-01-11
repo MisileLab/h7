@@ -538,10 +538,27 @@ export class GameScene extends Phaser.Scene {
     if (!edge) return
 
     const before = this.state
+    const oldHeat = before.heat
     const { outcome, flags } = simulateMove(before, this.rng, edge.cost, this.dayFlags)
     this.dayFlags = flags
 
     let next = applyMoveCost(before, { heat: outcome.deltaHeat, power: -outcome.deltaPower })
+    
+    // Track changes
+    next = trackHeatChange(next, oldHeat, next.heat)
+    next = trackResourceSpend(next, 'power', Math.max(0, -outcome.deltaPower))
+    if (outcome.blockedByLockdown) {
+      next = trackKeyEvent(next, 'LOCKDOWN')
+    }
+
+    // Check WARDEN broadcast
+    const { state: wardenState, broadcast } = checkAndTriggerWardenBroadcast(next, this.rng)
+    next = wardenState
+    if (broadcast) {
+      next = appendLog(next, { speaker: 'WARDEN', text: broadcast })
+      next = trackKeyEvent(next, 'WARDEN_BROADCAST')
+    }
+
     next = appendLog(next, { speaker: 'SYSTEM', text: `Move → ${this.nodeIndex.get(sel)?.name ?? sel}` })
     if (outcome.blockedByLockdown) {
       next = appendLog(next, { speaker: 'SYSTEM', text: 'Lockdown patrols force a detour.' })
@@ -566,7 +583,12 @@ export class GameScene extends Phaser.Scene {
     if (!n || n.type !== 'Extract' || !n.extract) return
     if (this.state.progress.extractedFrom[sel]) return
 
-    const out = simulateExtract(this.state, this.rng, {
+    const before = this.state
+    const oldHeat = before.heat
+    const oldScala = { ...before.scala }
+    const oldDroneIntegrity = before.drone.integrity
+
+    const out = simulateExtract(before, this.rng, {
       baseChance: n.extract.baseChance,
       reward: n.extract.reward,
       heatGain: n.extract.heatGain,
@@ -574,7 +596,26 @@ export class GameScene extends Phaser.Scene {
       integrityLossOnFail: 12 + n.risk * 4,
     })
 
-    let next = applyExtractOutcome(this.state, out)
+    let next = applyExtractOutcome(before, out)
+    
+    // Track changes
+    next = trackHeatChange(next, oldHeat, next.heat)
+    next = trackScalaChange(next, oldScala)
+    next = trackDroneChange(next, oldDroneIntegrity, out.droneDown)
+    if (out.ok) {
+      if (out.deltaPower > 0) next = trackResourceGain(next, 'power', out.deltaPower)
+      if (out.deltaSupplies > 0) next = trackResourceGain(next, 'supplies', out.deltaSupplies)
+      if (out.deltaParts > 0) next = trackResourceGain(next, 'parts', out.deltaParts)
+    }
+
+    // Check WARDEN broadcast
+    const { state: wardenState, broadcast } = checkAndTriggerWardenBroadcast(next, this.rng)
+    next = wardenState
+    if (broadcast) {
+      next = appendLog(next, { speaker: 'WARDEN', text: broadcast })
+      next = trackKeyEvent(next, 'WARDEN_BROADCAST')
+    }
+
     next = appendLog(next, { speaker: 'SYSTEM', text: out.ok ? `Extract success at ${n.name}.` : `Extract failed at ${n.name}.` })
     if (!out.ok) this.maybeShake(0.01, 160)
     if (out.obtainedEndingPart) {
@@ -639,8 +680,32 @@ export class GameScene extends Phaser.Scene {
     if (!n || n.type !== 'Hazard' || !n.hazard) return
     if (this.state.progress.hazardResolved[sel]) return
 
-    const out = simulateHazard(this.state, this.rng, { key: n.hazard.key, severity: n.hazard.severity })
-    let next = applyHazardOutcome(this.state, out)
+    const before = this.state
+    const oldHeat = before.heat
+    const oldScala = { ...before.scala }
+    const oldDroneIntegrity = before.drone.integrity
+
+    const out = simulateHazard(before, this.rng, { key: n.hazard.key, severity: n.hazard.severity })
+    let next = applyHazardOutcome(before, out)
+    
+    // Track changes
+    next = trackHeatChange(next, oldHeat, next.heat)
+    next = trackScalaChange(next, oldScala)
+    next = trackDroneChange(next, oldDroneIntegrity, out.droneDown)
+    if (n.hazard.key === 'PatrolSweep') {
+      next = trackKeyEvent(next, 'PATROL_SWEEP')
+    } else if (n.hazard.key === 'WardenSweep') {
+      next = trackKeyEvent(next, 'WARDEN_SWEEP')
+    }
+
+    // Check WARDEN broadcast
+    const { state: wardenState, broadcast } = checkAndTriggerWardenBroadcast(next, this.rng)
+    next = wardenState
+    if (broadcast) {
+      next = appendLog(next, { speaker: 'WARDEN', text: broadcast })
+      next = trackKeyEvent(next, 'WARDEN_BROADCAST')
+    }
+
     next = appendLog(next, { speaker: 'SYSTEM', text: out.ok ? `${n.hazard.key} cleared.` : `${n.hazard.key} hit.` })
     if (!out.ok) this.maybeShake(0.015, 180)
 

@@ -2,6 +2,7 @@ import type { EndingPartKey } from '../types'
 import type { LogLine } from './state'
 import type { GameState } from './state'
 import type { Rng } from './rng'
+import { data } from './data'
 
 export type SimFailReason = 'Heat100' | 'Vitals0'
 
@@ -120,6 +121,44 @@ export function roll(probability: number, rng: Rng): boolean {
   return rng.next() < probability
 }
 
+export function applyRoleModifiers(
+  state: GameState,
+  action: 'extract' | 'hazard' | 'move',
+  params: {
+    baseChance?: number
+    heatGain?: number
+    integrityLoss?: number
+    powerCost?: number
+    rewardMultiplier?: number
+  },
+): typeof params {
+  const role = state.drone.role
+  let result = { ...params }
+
+  if (action === 'extract') {
+    if (role === 'Mule') {
+      result.rewardMultiplier = (result.rewardMultiplier ?? 1) * 1.5
+      result.heatGain = Math.ceil((result.heatGain ?? 0) * 0.9)
+    }
+  }
+
+  if (action === 'hazard') {
+    if (role === 'Scout') {
+      result.baseChance = (result.baseChance ?? 0) + 0.1
+      result.integrityLoss = Math.floor((result.integrityLoss ?? 0) * 0.8)
+    }
+  }
+
+  if (action === 'move') {
+    if (role === 'Hack') {
+      result.powerCost = Math.max(0, (result.powerCost ?? 0) - 1)
+      result.heatGain = Math.floor((result.heatGain ?? 0) * 0.85)
+    }
+  }
+
+  return result
+}
+
 export function simulateExtract(
   state: GameState,
   rng: Rng,
@@ -131,19 +170,25 @@ export function simulateExtract(
     integrityLossOnFail: number
   },
 ): ExtractOutcome {
+  const roleModified = applyRoleModifiers(state, 'extract', {
+    heatGain: params.heatGain,
+    rewardMultiplier: 1,
+  })
+
   const successChance = computeExtractSuccessChance(state, params.baseChance)
   const ok = roll(successChance, rng)
 
   if (ok) {
+    const rewardMult = roleModified.rewardMultiplier ?? 1
     return {
       ok: true,
-      deltaHeat: params.heatGain,
+      deltaHeat: roleModified.heatGain ?? params.heatGain,
       deltaVitals: 0,
       deltaStress: 0,
       deltaTrust: state.scala.trust >= 60 ? 1 : 0,
-      deltaPower: params.reward.power ?? 0,
-      deltaSupplies: params.reward.supplies ?? 0,
-      deltaParts: params.reward.parts ?? 0,
+      deltaPower: Math.floor((params.reward.power ?? 0) * rewardMult),
+      deltaSupplies: Math.floor((params.reward.supplies ?? 0) * rewardMult),
+      deltaParts: Math.floor((params.reward.parts ?? 0) * rewardMult),
       obtainedEndingPart: params.reward.endingPart,
       droneIntegrityDelta: 0,
       droneDown: false,
@@ -184,9 +229,14 @@ export function simulateMove(
   cost: { time: number; heat: number; power: number },
   flags: DayFlags,
 ): { outcome: MoveOutcome; flags: DayFlags } {
+  const roleModified = applyRoleModifiers(state, 'move', {
+    powerCost: cost.power,
+    heatGain: cost.heat,
+  })
+
   let blockedByLockdown = false
-  let heat = cost.heat
-  let power = cost.power
+  let heat = roleModified.heatGain ?? cost.heat
+  let power = roleModified.powerCost ?? cost.power
 
   if (state.heat >= 40) {
     const lockdownChance = state.heat >= 70 ? 0.35 : 0.15
@@ -205,15 +255,19 @@ export function simulateMove(
 }
 
 export function simulateHazard(state: GameState, rng: Rng, params: { key: HazardOutcome['key']; severity: number }): HazardOutcome {
-  const baseOk = 0.85 - clamp(params.severity, 0, 3) * 0.15
-  const okChance = computeExtractSuccessChance(state, baseOk)
+  const roleModified = applyRoleModifiers(state, 'hazard', {
+    baseChance: 0.85 - clamp(params.severity, 0, 3) * 0.15,
+    integrityLoss: 12 + params.severity * 6,
+  })
+
+  const okChance = computeExtractSuccessChance(state, roleModified.baseChance ?? 0.7)
   const ok = roll(okChance, rng)
 
   if (params.key === 'SurgicalLight') {
     if (ok) {
       return { key: params.key, ok: true, deltaHeat: 0, deltaVitals: 0, deltaStress: 8, deltaTrust: 0, droneIntegrityDelta: 0, droneDown: false }
     }
-    const loss = -Math.round(12 + params.severity * 6)
+    const loss = -Math.round(roleModified.integrityLoss ?? (12 + params.severity * 6))
     const projected = clamp(state.drone.integrity + loss, 0, 100)
     return {
       key: params.key,
@@ -228,10 +282,11 @@ export function simulateHazard(state: GameState, rng: Rng, params: { key: Hazard
   }
 
   if (params.key === 'WardenSweep') {
+    const wardenLoss = roleModified.integrityLoss ?? (20 + params.severity * 10)
     if (ok) {
-      return { key: params.key, ok: true, deltaHeat: 4, deltaVitals: 0, deltaStress: 12, deltaTrust: 0, droneIntegrityDelta: -Math.round(8 + params.severity * 3), droneDown: false }
+      return { key: params.key, ok: true, deltaHeat: 4, deltaVitals: 0, deltaStress: 12, deltaTrust: 0, droneIntegrityDelta: -Math.round((8 + params.severity * 3) * 0.8), droneDown: false }
     }
-    const loss = -Math.round(20 + params.severity * 10)
+    const loss = -Math.round(wardenLoss)
     const projected = clamp(state.drone.integrity + loss, 0, 100)
     return {
       key: params.key,
@@ -245,11 +300,13 @@ export function simulateHazard(state: GameState, rng: Rng, params: { key: Hazard
     }
   }
 
+  // PatrolSweep (default)
   if (ok) {
     return { key: params.key, ok: true, deltaHeat: 2, deltaVitals: 0, deltaStress: 4, deltaTrust: 0, droneIntegrityDelta: 0, droneDown: false }
   }
 
-  const loss = -Math.round(18 + params.severity * 8)
+  const patrolLoss = roleModified.integrityLoss ?? (18 + params.severity * 8)
+  const loss = -Math.round(patrolLoss)
   const projected = clamp(state.drone.integrity + loss, 0, 100)
   return {
     key: params.key,
@@ -384,13 +441,13 @@ export function trackKeyEvent(state: GameState, event: string): GameState {
 }
 
 export function getWardenBroadcast(heat: number, rng: Rng): string | undefined {
-  const { wardenBroadcasts } = require('./data').data
+  const { wardenBroadcasts } = data
   
   let bucket: string[] = []
-  if (heat >= 100) bucket = wardenBroadcasts.bucket100
-  else if (heat >= 80) bucket = wardenBroadcasts.bucket80
-  else if (heat >= 60) bucket = wardenBroadcasts.bucket60
-  else if (heat >= 40) bucket = wardenBroadcasts.bucket40
+  if (heat >= 100) bucket = [...wardenBroadcasts.bucket100]
+  else if (heat >= 80) bucket = [...wardenBroadcasts.bucket80]
+  else if (heat >= 60) bucket = [...wardenBroadcasts.bucket60]
+  else if (heat >= 40) bucket = [...wardenBroadcasts.bucket40]
   else return undefined
 
   if (bucket.length === 0) return undefined
