@@ -54,6 +54,24 @@ export function loadFromSlot(slot: SaveSlot): GameState | undefined {
     ;(s as GameState).log = []
   }
 
+  if (!s.daySummary || typeof s.daySummary !== 'object') {
+    ;(s as GameState).daySummary = {
+      gained: { power: 0, supplies: 0, parts: 0 },
+      spent: { power: 0, supplies: 0, parts: 0 },
+      heatDelta: 0,
+      scalaDelta: { vitals: 0, stress: 0, trust: 0 },
+      droneDelta: { integrityDelta: 0, wentDown: false, salvageMarked: false },
+      keyEvents: [],
+    }
+  }
+
+  if (!s.wardenState || typeof s.wardenState !== 'object') {
+    ;(s as GameState).wardenState = {
+      lastBroadcastBucket: -1,
+      broadcastBucketsTriggered: [],
+    }
+  }
+
   return s as GameState
 }
 

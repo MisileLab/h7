@@ -3,6 +3,7 @@ import { BootScene } from './scenes/BootScene'
 import { SplashScene } from './scenes/SplashScene'
 import { MenuScene } from './scenes/MenuScene'
 import { GameScene } from './scenes/GameScene'
+import { DebriefScene } from './scenes/DebriefScene'
 
 function startGame(parent: string) {
   const config: Phaser.Types.Core.GameConfig = {
@@ -16,7 +17,7 @@ function startGame(parent: string) {
       mode: Phaser.Scale.RESIZE,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
-    scene: [BootScene, SplashScene, MenuScene, GameScene],
+    scene: [BootScene, SplashScene, MenuScene, GameScene, DebriefScene],
   }
 
   new Phaser.Game(config)

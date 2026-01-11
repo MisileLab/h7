@@ -233,4 +233,28 @@ export const data = {
     { from: 'N9_PART_B', to: 'N10_PART_C', cost: { time: 2, heat: 3, power: 1 } },
     { from: 'N10_PART_C', to: 'N0_HOME', cost: { time: 2, heat: 1, power: 2 } },
   ] as EdgeDef[],
+  wardenBroadcasts: {
+    bucket40: [
+      'NOTICE: Elevated grid activity. Maintain operational discipline.',
+      'ADVISORY: Network traffic flagged. Continue per standard protocol.',
+      'ATTENTION: System monitoring increased. Compliance required.',
+      'ALERT: Unauthorized patterns detected. Immediate assessment underway.',
+    ],
+    bucket60: [
+      'WARNING: Critical threshold approached. Cease irregular activity.',
+      'DIRECTIVE: All nodes subject to enhanced scrutiny. Reduce exposure.',
+      'CAUTION: Patrol density increased. Route optimization mandatory.',
+      'NOTICE: Lockdown protocols armed. Minimize operational signature.',
+    ],
+    bucket80: [
+      'PRIORITY ALERT: Maximum security posture engaged. Immediate withdrawal advised.',
+      'CRITICAL: Trace subroutines active. All vectors monitored.',
+      'URGENT: System integrity at risk. Terminate non-essential operations.',
+      'FINAL WARNING: Containment breach imminent. Compliance non-negotiable.',
+    ],
+    bucket100: [
+      'LOCKDOWN: Total network shutdown initiated. All activity logged.',
+      'CONTAINMENT: Full system override in effect. Extraction impossible.',
+    ],
+  },
 } as const

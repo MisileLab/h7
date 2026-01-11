@@ -7,7 +7,7 @@ import type { GameState } from '../core/state'
 import type { Milestone, NodeId, NodeType } from '../types'
 import { milestoneAtLeast } from '../types'
 import { createRng } from '../core/rng'
-import { applyExtractOutcome, applyHazardOutcome, applyMoveCost, appendLog, initDayFlags, simulateExtract, simulateHazard, simulateMove, stepAndCheckEnd } from '../core/sim'
+import { applyExtractOutcome, applyHazardOutcome, applyMoveCost, appendLog, checkAndTriggerWardenBroadcast, initDayFlags, simulateExtract, simulateHazard, simulateMove, stepAndCheckEnd, trackDroneChange, trackHeatChange, trackKeyEvent, trackResourceGain, trackResourceSpend, trackScalaChange } from '../core/sim'
 import { loadSettings, saveToSlot, type Settings } from '../core/save'
 
 type Point = { x: number; y: number }
@@ -52,6 +52,8 @@ export class GameScene extends Phaser.Scene {
   private btnExtract?: ReturnType<typeof createTextButton>
   private btnStory?: ReturnType<typeof createTextButton>
   private btnHazard?: ReturnType<typeof createTextButton>
+  private btnEndDay?: ReturnType<typeof createTextButton>
+  private btnChangeRole?: ReturnType<typeof createTextButton>
   private rng = createRng(1337)
   private dayFlags = initDayFlags(createInitialState())
   private endOverlay?: Phaser.GameObjects.Container
@@ -396,7 +398,7 @@ export class GameScene extends Phaser.Scene {
 
     const btnW = w - 24
     const btnH = 28
-    let by = h - 12 - btnH * 4 - 8 * 3
+    let by = h - 12 - btnH * 6 - 8 * 5
 
     this.btnMove = createTextButton(this, { x: x + 12, y: y + by, w: btnW, h: btnH, label: 'Move', onClick: () => this.onClickMove() })
     by += btnH + 8
@@ -405,19 +407,33 @@ export class GameScene extends Phaser.Scene {
     this.btnStory = createTextButton(this, { x: x + 12, y: y + by, w: btnW, h: btnH, label: 'Read', onClick: () => this.onClickStory() })
     by += btnH + 8
     this.btnHazard = createTextButton(this, { x: x + 12, y: y + by, w: btnW, h: btnH, label: 'Resolve Hazard', onClick: () => this.onClickHazard() })
+    by += btnH + 8
+    this.btnChangeRole = createTextButton(this, { x: x + 12, y: y + by, w: btnW, h: btnH, label: 'Change Role', onClick: () => this.onClickChangeRole() })
+    by += btnH + 8
+    this.btnEndDay = createTextButton(this, { x: x + 12, y: y + by, w: btnW, h: btnH, label: 'End Day', onClick: () => this.onClickEndDay() })
 
     this.sidePanel.add(this.btnMove.container)
     this.sidePanel.add(this.btnExtract.container)
     this.sidePanel.add(this.btnStory.container)
     this.sidePanel.add(this.btnHazard.container)
+    this.sidePanel.add(this.btnChangeRole.container)
+    this.sidePanel.add(this.btnEndDay.container)
   }
 
   private refreshSidePanel() {
-    if (!this.panelTitle || !this.panelBody || !this.btnMove || !this.btnExtract || !this.btnStory || !this.btnHazard) return
+    if (!this.panelTitle || !this.panelBody || !this.btnMove || !this.btnExtract || !this.btnStory || !this.btnHazard || !this.btnChangeRole || !this.btnEndDay) return
 
     const sel = this.state.run.selectedNodeId
     const current = this.state.run.droneNodeId
     const droneDown = this.state.drone.status === 'Down'
+    const atHome = current === 'N0_HOME'
+
+    // Change Role button: only active at Home
+    this.btnChangeRole.setDisabled(!atHome || droneDown)
+    this.btnChangeRole.setLabel(`Role: ${this.state.drone.role}`)
+
+    // End Day button: only active at Home
+    this.btnEndDay.setDisabled(!atHome || droneDown)
 
     if (!sel) {
       this.panelTitle.setText(droneDown ? 'Drone Down' : 'No selection')
@@ -677,6 +693,38 @@ export class GameScene extends Phaser.Scene {
     next = this.applyTime(next, 1)
 
     this.state = next
+    this.refreshSidePanel()
+    this.refreshLogView()
+    this.maybeAutosave()
+  }
+
+  private onClickEndDay() {
+    if (!this.isAtLeast('M2')) return
+    if (this.state.run.droneNodeId !== 'N0_HOME') return
+    if (this.state.drone.status === 'Down') return
+
+    this.scene.start('Debrief', { state: this.state })
+  }
+
+  private onClickChangeRole() {
+    if (!this.isAtLeast('M2')) return
+    if (this.state.run.droneNodeId !== 'N0_HOME') return
+    if (this.state.drone.status === 'Down') return
+
+    const roles: Array<'Scout' | 'Mule' | 'Hack'> = ['Scout', 'Mule', 'Hack']
+    const currentIdx = roles.indexOf(this.state.drone.role)
+    const nextIdx = (currentIdx + 1) % roles.length
+    const nextRole = roles[nextIdx]
+
+    this.state = {
+      ...this.state,
+      drone: {
+        ...this.state.drone,
+        role: nextRole,
+      },
+    }
+
+    this.state = appendLog(this.state, { speaker: 'SYSTEM', text: `Drone role changed to ${nextRole}.` })
     this.refreshSidePanel()
     this.refreshLogView()
     this.maybeAutosave()

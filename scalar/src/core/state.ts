@@ -33,6 +33,20 @@ export interface RunProgress {
   hazardResolved: Partial<Record<NodeId, boolean>>
 }
 
+export interface DaySummary {
+  gained: { power: number; supplies: number; parts: number }
+  spent: { power: number; supplies: number; parts: number }
+  heatDelta: number
+  scalaDelta: { vitals: number; stress: number; trust: number }
+  droneDelta: { integrityDelta: number; wentDown: boolean; salvageMarked: boolean }
+  keyEvents: string[]
+}
+
+export interface WardenState {
+  lastBroadcastBucket: number
+  broadcastBucketsTriggered: number[]
+}
+
 export interface LogLine {
   day: number
   speaker: 'CRYSTAL' | 'SCALA' | 'WARDEN' | 'SYSTEM'
@@ -49,6 +63,8 @@ export interface GameState {
   run: RunState
   progress: RunProgress
   log: LogLine[]
+  daySummary: DaySummary
+  wardenState: WardenState
 }
 
 export function createInitialState(opts?: { milestone?: Milestone }): GameState {
@@ -67,5 +83,17 @@ export function createInitialState(opts?: { milestone?: Milestone }): GameState 
     run: { mode: 'Planning', droneNodeId: 'N0_HOME' },
     progress: { extractedFrom: {}, storyRead: {}, hazardResolved: {} },
     log: [],
+    daySummary: {
+      gained: { power: 0, supplies: 0, parts: 0 },
+      spent: { power: 0, supplies: 0, parts: 0 },
+      heatDelta: 0,
+      scalaDelta: { vitals: 0, stress: 0, trust: 0 },
+      droneDelta: { integrityDelta: 0, wentDown: false, salvageMarked: false },
+      keyEvents: [],
+    },
+    wardenState: {
+      lastBroadcastBucket: -1,
+      broadcastBucketsTriggered: [],
+    },
   }
 }
