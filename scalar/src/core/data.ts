@@ -24,12 +24,8 @@ export type NodeDef = {
     once?: boolean
   }
   hazard?: {
-    key: 'PatrolSweep' | 'SurgicalLight'
+    key: 'PatrolSweep' | 'SurgicalLight' | 'WardenSweep'
     severity: number
-  }
-  combat?: {
-    key: 'WardenSkirmish'
-    difficulty: number
   }
 }
 
@@ -147,12 +143,12 @@ export const data = {
     },
 
     {
-      id: 'N7B_COMBAT_SKIRMISH',
-      name: 'Warden Skirmish',
-      type: 'Combat',
+      id: 'N7B_WARDEN_SWEEP',
+      name: 'WARDEN SWEEP',
+      type: 'Hazard',
       pos: { x: 1110, y: 600 },
       risk: 3,
-      combat: { key: 'WardenSkirmish', difficulty: 2 },
+      hazard: { key: 'WardenSweep', severity: 3 },
     },
 
     {
@@ -230,11 +226,35 @@ export const data = {
 
     { from: 'N3_SCRAPYARD', to: 'N6_HAZ_PATROL', cost: { time: 1, heat: 2, power: 1 } },
     { from: 'N6_HAZ_PATROL', to: 'N7_HAZ_LIGHT', cost: { time: 1, heat: 2, power: 1 } },
-    { from: 'N7_HAZ_LIGHT', to: 'N7B_COMBAT_SKIRMISH', cost: { time: 1, heat: 1, power: 1 } },
-    { from: 'N7B_COMBAT_SKIRMISH', to: 'N10_PART_C', cost: { time: 1, heat: 2, power: 1 } },
+    { from: 'N7_HAZ_LIGHT', to: 'N7B_WARDEN_SWEEP', cost: { time: 1, heat: 1, power: 1 } },
+    { from: 'N7B_WARDEN_SWEEP', to: 'N10_PART_C', cost: { time: 1, heat: 2, power: 1 } },
     { from: 'N5_PART_A', to: 'N9_PART_B', cost: { time: 1, heat: 3, power: 2 } },
 
     { from: 'N9_PART_B', to: 'N10_PART_C', cost: { time: 2, heat: 3, power: 1 } },
     { from: 'N10_PART_C', to: 'N0_HOME', cost: { time: 2, heat: 1, power: 2 } },
   ] as EdgeDef[],
+  wardenBroadcasts: {
+    bucket40: [
+      'NOTICE: Elevated grid activity. Maintain operational discipline.',
+      'ADVISORY: Network traffic flagged. Continue per standard protocol.',
+      'ATTENTION: System monitoring increased. Compliance required.',
+      'ALERT: Unauthorized patterns detected. Immediate assessment underway.',
+    ],
+    bucket60: [
+      'WARNING: Critical threshold approached. Cease irregular activity.',
+      'DIRECTIVE: All nodes subject to enhanced scrutiny. Reduce exposure.',
+      'CAUTION: Patrol density increased. Route optimization mandatory.',
+      'NOTICE: Lockdown protocols armed. Minimize operational signature.',
+    ],
+    bucket80: [
+      'PRIORITY ALERT: Maximum security posture engaged. Immediate withdrawal advised.',
+      'CRITICAL: Trace subroutines active. All vectors monitored.',
+      'URGENT: System integrity at risk. Terminate non-essential operations.',
+      'FINAL WARNING: Containment breach imminent. Compliance non-negotiable.',
+    ],
+    bucket100: [
+      'LOCKDOWN: Total network shutdown initiated. All activity logged.',
+      'CONTAINMENT: Full system override in effect. Extraction impossible.',
+    ],
+  },
 } as const

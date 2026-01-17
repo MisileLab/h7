@@ -1,6 +1,6 @@
 export type DroneRole = 'Scout' | 'Mule' | 'Hack'
 
-export type NodeType = 'Extract' | 'Story' | 'Hazard' | 'Combat'
+export type NodeType = 'Extract' | 'Story' | 'Hazard'
 
 export type ResourceKey = 'power' | 'supplies' | 'parts'
 
@@ -16,7 +16,7 @@ export type HazardKey = string
 
 export type ExtractKey = string
 
-export type RunMode = 'Planning' | 'Execution'
+export type RunMode = 'Planning' | 'Execution' | 'Debrief'
 
 export type Milestone = 'M0' | 'M1' | 'M2' | 'M3' | 'M4' | 'M5' | 'M6'
 

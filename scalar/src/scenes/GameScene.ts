@@ -7,7 +7,7 @@ import type { GameState } from '../core/state'
 import type { Milestone, NodeId, NodeType } from '../types'
 import { milestoneAtLeast } from '../types'
 import { createRng } from '../core/rng'
-import { applyCombatOutcome, applyExtractOutcome, applyHazardOutcome, applyMoveCost, appendLog, initDayFlags, simulateCombat, simulateExtract, simulateHazard, simulateMove, stepAndCheckEnd } from '../core/sim'
+import { applyExtractOutcome, applyHazardOutcome, applyMoveCost, appendLog, checkAndTriggerWardenBroadcast, initDayFlags, simulateExtract, simulateHazard, simulateMove, stepAndCheckEnd, trackDroneChange, trackHeatChange, trackKeyEvent, trackResourceGain, trackResourceSpend, trackScalaChange } from '../core/sim'
 import { loadSettings, saveToSlot, type Settings } from '../core/save'
 
 type Point = { x: number; y: number }
@@ -52,6 +52,8 @@ export class GameScene extends Phaser.Scene {
   private btnExtract?: ReturnType<typeof createTextButton>
   private btnStory?: ReturnType<typeof createTextButton>
   private btnHazard?: ReturnType<typeof createTextButton>
+  private btnEndDay?: ReturnType<typeof createTextButton>
+  private btnChangeRole?: ReturnType<typeof createTextButton>
   private rng = createRng(1337)
   private dayFlags = initDayFlags(createInitialState())
   private endOverlay?: Phaser.GameObjects.Container
@@ -349,7 +351,6 @@ export class GameScene extends Phaser.Scene {
   private nodeFill(t: NodeType): number {
     if (t === 'Extract') return 0xffb000
     if (t === 'Story') return 0xd8caa7
-    if (t === 'Combat') return 0xff3dd6
     return 0xff6b3d
   }
 
@@ -397,7 +398,7 @@ export class GameScene extends Phaser.Scene {
 
     const btnW = w - 24
     const btnH = 28
-    let by = h - 12 - btnH * 4 - 8 * 3
+    let by = h - 12 - btnH * 6 - 8 * 5
 
     this.btnMove = createTextButton(this, { x: x + 12, y: y + by, w: btnW, h: btnH, label: 'Move', onClick: () => this.onClickMove() })
     by += btnH + 8
@@ -406,19 +407,33 @@ export class GameScene extends Phaser.Scene {
     this.btnStory = createTextButton(this, { x: x + 12, y: y + by, w: btnW, h: btnH, label: 'Read', onClick: () => this.onClickStory() })
     by += btnH + 8
     this.btnHazard = createTextButton(this, { x: x + 12, y: y + by, w: btnW, h: btnH, label: 'Resolve Hazard', onClick: () => this.onClickHazard() })
+    by += btnH + 8
+    this.btnChangeRole = createTextButton(this, { x: x + 12, y: y + by, w: btnW, h: btnH, label: 'Change Role', onClick: () => this.onClickChangeRole() })
+    by += btnH + 8
+    this.btnEndDay = createTextButton(this, { x: x + 12, y: y + by, w: btnW, h: btnH, label: 'End Day', onClick: () => this.onClickEndDay() })
 
     this.sidePanel.add(this.btnMove.container)
     this.sidePanel.add(this.btnExtract.container)
     this.sidePanel.add(this.btnStory.container)
     this.sidePanel.add(this.btnHazard.container)
+    this.sidePanel.add(this.btnChangeRole.container)
+    this.sidePanel.add(this.btnEndDay.container)
   }
 
   private refreshSidePanel() {
-    if (!this.panelTitle || !this.panelBody || !this.btnMove || !this.btnExtract || !this.btnStory || !this.btnHazard) return
+    if (!this.panelTitle || !this.panelBody || !this.btnMove || !this.btnExtract || !this.btnStory || !this.btnHazard || !this.btnChangeRole || !this.btnEndDay) return
 
     const sel = this.state.run.selectedNodeId
     const current = this.state.run.droneNodeId
     const droneDown = this.state.drone.status === 'Down'
+    const atHome = current === 'N0_HOME'
+
+    // Change Role button: only active at Home
+    this.btnChangeRole.setDisabled(!atHome || droneDown)
+    this.btnChangeRole.setLabel(`Role: ${this.state.drone.role}`)
+
+    // End Day button: only active at Home
+    this.btnEndDay.setDisabled(!atHome || droneDown)
 
     if (!sel) {
       this.panelTitle.setText(droneDown ? 'Drone Down' : 'No selection')
@@ -523,11 +538,27 @@ export class GameScene extends Phaser.Scene {
     if (!edge) return
 
     const before = this.state
-    const enteredCombat = this.nodeIndex.get(sel)?.type === 'Combat'
-    const { outcome, flags } = simulateMove(before, this.rng, edge.cost, this.dayFlags, { enteredCombat })
+    const oldHeat = before.heat
+    const { outcome, flags } = simulateMove(before, this.rng, edge.cost, this.dayFlags)
     this.dayFlags = flags
 
     let next = applyMoveCost(before, { heat: outcome.deltaHeat, power: -outcome.deltaPower })
+    
+    // Track changes
+    next = trackHeatChange(next, oldHeat, next.heat)
+    next = trackResourceSpend(next, 'power', Math.max(0, -outcome.deltaPower))
+    if (outcome.blockedByLockdown) {
+      next = trackKeyEvent(next, 'LOCKDOWN')
+    }
+
+    // Check WARDEN broadcast
+    const { state: wardenState, broadcast } = checkAndTriggerWardenBroadcast(next, this.rng)
+    next = wardenState
+    if (broadcast) {
+      next = appendLog(next, { speaker: 'WARDEN', text: broadcast })
+      next = trackKeyEvent(next, 'WARDEN_BROADCAST')
+    }
+
     next = appendLog(next, { speaker: 'SYSTEM', text: `Move → ${this.nodeIndex.get(sel)?.name ?? sel}` })
     if (outcome.blockedByLockdown) {
       next = appendLog(next, { speaker: 'SYSTEM', text: 'Lockdown patrols force a detour.' })
@@ -535,16 +566,6 @@ export class GameScene extends Phaser.Scene {
 
     next = { ...next, run: { ...next.run, droneNodeId: sel, selectedNodeId: sel } }
     next = this.applyTime(next, outcome.time)
-
-    if (outcome.enteredCombat) {
-      const n = this.nodeIndex.get(sel)
-      if (n?.type === 'Combat' && n.combat) {
-        const out = simulateCombat(next, this.rng, { key: n.combat.key, difficulty: n.combat.difficulty })
-        next = applyCombatOutcome(next, out)
-        next = appendLog(next, { speaker: 'SYSTEM', text: out.ok ? `Combat won at ${n.name}.` : `Combat lost at ${n.name}.` })
-        if (!out.ok) this.maybeShake(0.015, 200)
-      }
-    }
 
     this.state = next
     this.snapDroneToNode(sel)
@@ -562,7 +583,12 @@ export class GameScene extends Phaser.Scene {
     if (!n || n.type !== 'Extract' || !n.extract) return
     if (this.state.progress.extractedFrom[sel]) return
 
-    const out = simulateExtract(this.state, this.rng, {
+    const before = this.state
+    const oldHeat = before.heat
+    const oldScala = { ...before.scala }
+    const oldDroneIntegrity = before.drone.integrity
+
+    const out = simulateExtract(before, this.rng, {
       baseChance: n.extract.baseChance,
       reward: n.extract.reward,
       heatGain: n.extract.heatGain,
@@ -570,7 +596,26 @@ export class GameScene extends Phaser.Scene {
       integrityLossOnFail: 12 + n.risk * 4,
     })
 
-    let next = applyExtractOutcome(this.state, out)
+    let next = applyExtractOutcome(before, out)
+    
+    // Track changes
+    next = trackHeatChange(next, oldHeat, next.heat)
+    next = trackScalaChange(next, oldScala)
+    next = trackDroneChange(next, oldDroneIntegrity, out.droneDown)
+    if (out.ok) {
+      if (out.deltaPower > 0) next = trackResourceGain(next, 'power', out.deltaPower)
+      if (out.deltaSupplies > 0) next = trackResourceGain(next, 'supplies', out.deltaSupplies)
+      if (out.deltaParts > 0) next = trackResourceGain(next, 'parts', out.deltaParts)
+    }
+
+    // Check WARDEN broadcast
+    const { state: wardenState, broadcast } = checkAndTriggerWardenBroadcast(next, this.rng)
+    next = wardenState
+    if (broadcast) {
+      next = appendLog(next, { speaker: 'WARDEN', text: broadcast })
+      next = trackKeyEvent(next, 'WARDEN_BROADCAST')
+    }
+
     next = appendLog(next, { speaker: 'SYSTEM', text: out.ok ? `Extract success at ${n.name}.` : `Extract failed at ${n.name}.` })
     if (!out.ok) this.maybeShake(0.01, 160)
     if (out.obtainedEndingPart) {
@@ -635,8 +680,32 @@ export class GameScene extends Phaser.Scene {
     if (!n || n.type !== 'Hazard' || !n.hazard) return
     if (this.state.progress.hazardResolved[sel]) return
 
-    const out = simulateHazard(this.state, this.rng, { key: n.hazard.key, severity: n.hazard.severity })
-    let next = applyHazardOutcome(this.state, out)
+    const before = this.state
+    const oldHeat = before.heat
+    const oldScala = { ...before.scala }
+    const oldDroneIntegrity = before.drone.integrity
+
+    const out = simulateHazard(before, this.rng, { key: n.hazard.key, severity: n.hazard.severity })
+    let next = applyHazardOutcome(before, out)
+    
+    // Track changes
+    next = trackHeatChange(next, oldHeat, next.heat)
+    next = trackScalaChange(next, oldScala)
+    next = trackDroneChange(next, oldDroneIntegrity, out.droneDown)
+    if (n.hazard.key === 'PatrolSweep') {
+      next = trackKeyEvent(next, 'PATROL_SWEEP')
+    } else if (n.hazard.key === 'WardenSweep') {
+      next = trackKeyEvent(next, 'WARDEN_SWEEP')
+    }
+
+    // Check WARDEN broadcast
+    const { state: wardenState, broadcast } = checkAndTriggerWardenBroadcast(next, this.rng)
+    next = wardenState
+    if (broadcast) {
+      next = appendLog(next, { speaker: 'WARDEN', text: broadcast })
+      next = trackKeyEvent(next, 'WARDEN_BROADCAST')
+    }
+
     next = appendLog(next, { speaker: 'SYSTEM', text: out.ok ? `${n.hazard.key} cleared.` : `${n.hazard.key} hit.` })
     if (!out.ok) this.maybeShake(0.015, 180)
 
@@ -689,6 +758,38 @@ export class GameScene extends Phaser.Scene {
     next = this.applyTime(next, 1)
 
     this.state = next
+    this.refreshSidePanel()
+    this.refreshLogView()
+    this.maybeAutosave()
+  }
+
+  private onClickEndDay() {
+    if (!this.isAtLeast('M2')) return
+    if (this.state.run.droneNodeId !== 'N0_HOME') return
+    if (this.state.drone.status === 'Down') return
+
+    this.scene.start('Debrief', { state: this.state })
+  }
+
+  private onClickChangeRole() {
+    if (!this.isAtLeast('M2')) return
+    if (this.state.run.droneNodeId !== 'N0_HOME') return
+    if (this.state.drone.status === 'Down') return
+
+    const roles: Array<'Scout' | 'Mule' | 'Hack'> = ['Scout', 'Mule', 'Hack']
+    const currentIdx = roles.indexOf(this.state.drone.role)
+    const nextIdx = (currentIdx + 1) % roles.length
+    const nextRole = roles[nextIdx]
+
+    this.state = {
+      ...this.state,
+      drone: {
+        ...this.state.drone,
+        role: nextRole,
+      },
+    }
+
+    this.state = appendLog(this.state, { speaker: 'SYSTEM', text: `Drone role changed to ${nextRole}.` })
     this.refreshSidePanel()
     this.refreshLogView()
     this.maybeAutosave()
